@@ -1,0 +1,19 @@
+<!-- 📁 frontend/admin-home.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Home</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>Manage Products</h2>
+  <form id="addProductForm">
+    <input type="text" placeholder="Product Name" name="name" required><br>
+    <input type="number" placeholder="Price" name="price" required><br>
+    <textarea name="description" placeholder="Description"></textarea><br>
+    <button type="submit">Add Product</button>
+  </form>
+  <div id="adminProductList"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

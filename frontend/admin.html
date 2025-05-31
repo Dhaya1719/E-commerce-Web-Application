@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+  <button id="logoutBtn">Logout</button>
+
+  <h2>Add Product</h2>
+  <form id="addProductForm">
+    <input type="text" id="name" placeholder="Name" required />
+    <input type="number" id="price" placeholder="Price" required />
+    <input type="text" id="category" placeholder="Category" />
+    <input type="number" id="stock" placeholder="Stock" value="0" />
+    <input type="text" id="image" placeholder="Image URL" />
+    <button type="submit">Add Product</button>
+  </form>
+
+  <h2>Existing Products</h2>
+  <div id="products"></div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (!token || role !== 'admin') {
+      alert('Unauthorized! Redirecting to login.');
+      window.location.href = 'login.html';
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      window.location.href = 'login.html';
+    });
+
+    const addForm = document.getElementById('addProductForm');
+    const productsDiv = document.getElementById('products');
+
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const product = {
+        name: document.getElementById('name').value,
+        price: Number(document.getElementById('price').value),
+        category: document.getElementById('category').value,
+        stock: Number(document.getElementById('stock').value),
+        image: document.getElementById('image').value,
+      };
+
+      try {
+        const res = await fetch('http://localhost:5000/api/products', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token,
+          },
+          body: JSON.stringify(product),
+        });
+        if (!res.ok) throw new Error('Failed to add product');
+        addForm.reset();
+        loadProducts();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function loadProducts() {
+      try {
+        const res = await fetch('http://localhost:5000/api/products');
+        const products = await res.json();
+        productsDiv.innerHTML = '';
+        products.forEach(p => {
+          const div = document.createElement('div');
+          div.style.border = '1px solid #ccc';
+          div.style.margin = '10px';
+          div.style.padding = '10px';
+
+          div.innerHTML = `
+            <strong>${p.name}</strong> - $${p.price} <br/>
+            Category: ${p.category || 'N/A'}<br/>
+            Stock: ${p.stock}<br/>
+            ${p.image ? `<img src="${p.image}" width="100" />` : ''}
+            <br/>
+            <button class="editBtn" data-id="${p._id}">Edit</button>
+            <button class="deleteBtn" data-id="${p._id}">Delete</button>
+          `;
+
+          productsDiv.appendChild(div);
+        });
+
+        // Attach event listeners
+        document.querySelectorAll('.deleteBtn').forEach(btn => {
+          btn.onclick = async () => {
+            const id = btn.getAttribute('data-id');
+            if (confirm('Delete this product?')) {
+              try {
+                const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+                  method: 'DELETE',
+                  headers: { Authorization: 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error('Failed to delete product');
+                loadProducts();
+              } catch (err) {
+                alert(err.message);
+              }
+            }
+          };
+        });
+
+        document.querySelectorAll('.editBtn').forEach(btn => {
+          btn.onclick = () => {
+            const id = btn.getAttribute('data-id');
+            const product = products.find(p => p._id === id);
+            if (!product) return;
+
+            // Fill form with product data for editing
+            document.getElementById('name').value = product.name;
+            document.getElementById('price').value = product.price;
+            document.getElementById('category').value = product.category || '';
+            document.getElementById('stock').value = product.stock;
+            document.getElementById('image').value = product.image || '';
+
+            // Change add form to update form
+            addForm.onsubmit = async (e) => {
+              e.preventDefault();
+              const updatedProduct = {
+                name: document.getElementById('name').value,
+                price: Number(document.getElementById('price').value),
+                category: document.getElementById('category').value,
+                stock: Number(document.getElementById('stock').value),
+                image: document.getElementById('image').value,
+              };
+              try {
+                const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer ' + token
+                  },
+                  body: JSON.stringify(updatedProduct),
+                });
+                if (!res.ok) throw new Error('Failed to update product');
+                addForm.reset();
+                addForm.onsubmit = addFormSubmit; // revert to add mode
+                loadProducts();
+              } catch (err) {
+                alert(err.message);
+              }
+            };
+          };
+        });
+
+      } catch (err) {
+        productsDiv.textContent = 'Failed to load products';
+      }
+    }
+
+    // Save the original submit handler
+    const addFormSubmit = addForm.onsubmit;
+
+    loadProducts();
+  </script>
+</body>
+</html>
